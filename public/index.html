@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PPE Webhook Dashboard</title>
+    <style>
+      :root {
+        --bg-a: #f3ede2;
+        --bg-b: #dce6f3;
+        --card: #fffdf8;
+        --ink: #1b1f24;
+        --muted: #5a6470;
+        --accent: #0f766e;
+        --accent-2: #14532d;
+        --line: #d9e0e8;
+        --warning: #9a3412;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: "Avenir Next", "Segoe UI", sans-serif;
+        color: var(--ink);
+        background:
+          radial-gradient(circle at 20% 10%, #ffffff 0%, transparent 42%),
+          radial-gradient(circle at 80% 85%, #f7d7aa 0%, transparent 35%),
+          linear-gradient(145deg, var(--bg-a), var(--bg-b));
+      }
+
+      .page {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 28px 18px 42px;
+      }
+
+      .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+        margin-bottom: 22px;
+      }
+
+      .title {
+        margin: 0;
+        font-size: clamp(1.3rem, 2.5vw, 2rem);
+        line-height: 1.1;
+        letter-spacing: 0.2px;
+      }
+
+      .subtitle {
+        margin: 8px 0 0;
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+
+      .meta {
+        display: grid;
+        gap: 6px;
+        text-align: right;
+        font-size: 0.9rem;
+      }
+
+      .chip {
+        background: #ffffffcc;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 6px 12px;
+      }
+
+      .board {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 16px;
+      }
+
+      .card {
+        background: var(--card);
+        border: 1px solid #e4d8bf;
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow:
+          0 1px 1px rgba(0, 0, 0, 0.04),
+          0 8px 24px rgba(18, 38, 63, 0.08);
+      }
+
+      .image-wrap {
+        height: 170px;
+        background: linear-gradient(120deg, #e7f4f1, #f8f1dc);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-bottom: 1px solid #ece6d9;
+      }
+
+      .image-wrap img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .image-empty {
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+
+      .content {
+        padding: 14px 14px 16px;
+      }
+
+      .event-name {
+        margin: 0 0 10px;
+        font-size: 1.05rem;
+      }
+
+      .pill {
+        display: inline-block;
+        background: #d1fae5;
+        color: var(--accent-2);
+        border: 1px solid #86efac;
+        border-radius: 999px;
+        padding: 2px 10px;
+        font-size: 0.78rem;
+        margin-bottom: 10px;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px 10px;
+        font-size: 0.88rem;
+      }
+
+      .kv {
+        border-top: 1px dashed var(--line);
+        padding-top: 6px;
+      }
+
+      .k {
+        color: var(--muted);
+        margin-bottom: 2px;
+      }
+
+      .v {
+        font-weight: 600;
+        overflow-wrap: anywhere;
+      }
+
+      .empty {
+        border: 1px dashed #bfccb9;
+        border-radius: 14px;
+        padding: 24px;
+        text-align: center;
+        color: var(--muted);
+        background: #fcfff8;
+      }
+
+      .error {
+        margin-top: 12px;
+        color: var(--warning);
+        font-size: 0.9rem;
+      }
+
+      @media (max-width: 700px) {
+        .header {
+          flex-direction: column;
+        }
+
+        .meta {
+          text-align: left;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <section class="header">
+        <div>
+          <h1 class="title">PPE Incoming Webhooks</h1>
+          <p class="subtitle">Live view of events received by your service</p>
+        </div>
+        <div class="meta">
+          <div id="count" class="chip">Events: 0</div>
+          <div id="updated" class="chip">Updated: --</div>
+        </div>
+      </section>
+
+      <section id="board" class="board"></section>
+      <div id="error" class="error"></div>
+    </main>
+
+    <script>
+      const boardEl = document.getElementById("board");
+      const countEl = document.getElementById("count");
+      const updatedEl = document.getElementById("updated");
+      const errorEl = document.getElementById("error");
+
+      function formatDate(value) {
+        if (!value) return "-";
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return value;
+        return date.toLocaleString();
+      }
+
+      function escapeHtml(value) {
+        if (value === undefined || value === null) return "-";
+        return String(value)
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;");
+      }
+
+      function renderImage(payload) {
+        if (!payload.thumbnailImage) {
+          return '<div class="image-empty">No image in this payload</div>';
+        }
+        return `<img src="${payload.thumbnailImage}" alt="Webhook image" />`;
+      }
+
+      function formatEpochSeconds(value) {
+        if (value === undefined || value === null) return "-";
+        const date = new Date(Number(value) * 1000);
+        if (Number.isNaN(date.getTime())) return String(value);
+        return date.toLocaleString();
+      }
+
+      function cardTemplate(item) {
+        const p = item.payload || {};
+        return `
+          <article class="card">
+            <div class="image-wrap">${renderImage(p)}</div>
+            <div class="content">
+              <span class="pill">${escapeHtml(p.event_type || "unknown")}</span>
+              <h2 class="event-name">${escapeHtml(p.name || "Unnamed event")}</h2>
+              <div class="grid">
+                <div class="kv"><div class="k">Confidence</div><div class="v">${escapeHtml(p.confidence)}</div></div>
+                <div class="kv"><div class="k">Camera</div><div class="v">${escapeHtml(p.cameraName)}</div></div>
+                <div class="kv"><div class="k">Zone</div><div class="v">${escapeHtml(p.zoneName || "-")}</div></div>
+                <div class="kv"><div class="k">Zone Severity</div><div class="v">${escapeHtml(p.zoneSeverity || "-")}</div></div>
+                <div class="kv"><div class="k">Event Time (Epoch)</div><div class="v">${escapeHtml(formatEpochSeconds(p.eventTime))}</div></div>
+                <div class="kv"><div class="k">Event Timestamp</div><div class="v">${escapeHtml(formatDate(p.timestamp))}</div></div>
+                <div class="kv"><div class="k">Received At</div><div class="v">${escapeHtml(formatDate(item.receivedAt))}</div></div>
+              </div>
+            </div>
+          </article>
+        `;
+      }
+
+      function renderEmpty() {
+        boardEl.innerHTML = `
+          <div class="empty">
+            No incoming webhooks yet. Send a test from PPE Desktop to see cards here.
+          </div>
+        `;
+      }
+
+      async function loadEvents() {
+        try {
+          const response = await fetch("/events", { cache: "no-store" });
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+
+          const data = await response.json();
+          const items = Array.isArray(data.items) ? data.items : [];
+          countEl.textContent = `Events: ${items.length}`;
+          updatedEl.textContent = `Updated: ${new Date().toLocaleTimeString()}`;
+          errorEl.textContent = "";
+
+          if (!items.length) {
+            renderEmpty();
+            return;
+          }
+
+          boardEl.innerHTML = items.map(cardTemplate).join("");
+        } catch (error) {
+          errorEl.textContent = `Failed to load events: ${error.message}`;
+          if (!boardEl.innerHTML.trim()) {
+            renderEmpty();
+          }
+        }
+      }
+
+      loadEvents();
+      setInterval(loadEvents, 4000);
+    </script>
+  </body>
+  </html>

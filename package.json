@@ -1,0 +1,22 @@
+{
+  "name": "incoming-webhook-service",
+  "version": "1.0.0",
+  "description": "Sample Node.js service to receive PPE Desktop incoming webhooks.",
+  "main": "src/server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "keywords": [
+    "webhook",
+    "nodejs",
+    "express",
+    "ppe"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}
