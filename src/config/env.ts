@@ -1,7 +1,8 @@
-const fs = require("fs");
-const path = require("path");
+import fs from "fs";
+import path from "path";
+import type { AppConfig, WebhookAuthMode } from "../types/ppe";
 
-function loadDotEnvFile() {
+function loadDotEnvFile(): void {
   const envPath = path.resolve(process.cwd(), ".env");
   if (!fs.existsSync(envPath)) {
     return;
@@ -27,29 +28,33 @@ function loadDotEnvFile() {
   }
 }
 
-loadDotEnvFile();
-
-function toPositiveInteger(value, fallback) {
+function toPositiveInteger(value: string | undefined, fallback: number): number {
   const parsed = Number(value);
   if (!Number.isInteger(parsed) || parsed <= 0) {
     return fallback;
   }
+
   return parsed;
 }
 
-function parseAuthMode(value) {
+function parseAuthMode(value: string | undefined): WebhookAuthMode {
   const mode = String(value || "auto").toLowerCase();
-  const allowedModes = ["auto", "none", "bearer"];
-  if (!allowedModes.includes(mode)) {
+  const allowedModes: WebhookAuthMode[] = ["auto", "none", "bearer"];
+  if (!allowedModes.includes(mode as WebhookAuthMode)) {
     return "auto";
   }
-  return mode;
+
+  return mode as WebhookAuthMode;
 }
 
-module.exports = {
+loadDotEnvFile();
+
+const config: AppConfig = {
   port: toPositiveInteger(process.env.PORT, 3000),
   expectedBearerToken: process.env.WEBHOOK_AUTH_TOKEN || "",
   webhookAuthMode: parseAuthMode(process.env.WEBHOOK_AUTH_MODE),
   maxEvents: toPositiveInteger(process.env.MAX_EVENTS, 200),
   jsonBodyLimit: process.env.JSON_BODY_LIMIT || "25mb"
 };
+
+export default config;

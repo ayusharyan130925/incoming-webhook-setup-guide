@@ -1,13 +1,25 @@
-const express = require("express");
-const { isAuthorizedBearer, shouldRequireBearerAuth } = require("../utils/auth");
-const { validatePpeEventPayload } = require("../validators/ppeEventValidator");
+import { Router } from "express";
+import EventStore from "../services/eventStore";
+import type {
+  PpeEventPayload,
+  StoredEvent,
+  WebhookAuthMode
+} from "../types/ppe";
+import { isAuthorizedBearer, shouldRequireBearerAuth } from "../utils/auth";
+import { validatePpeEventPayload } from "../validators/ppeEventValidator";
 
-function createWebhookRoutes({
+interface WebhookRouteDependencies {
+  eventStore: EventStore<StoredEvent>;
+  expectedBearerToken: string;
+  webhookAuthMode: WebhookAuthMode;
+}
+
+export default function createWebhookRoutes({
   eventStore,
   expectedBearerToken,
   webhookAuthMode
-}) {
-  const router = express.Router();
+}: WebhookRouteDependencies): Router {
+  const router = Router();
 
   router.post("/webhooks/ppe", (req, res) => {
     const requiresBearerAuth = shouldRequireBearerAuth({
@@ -33,29 +45,29 @@ function createWebhookRoutes({
       });
     }
 
+    const payload = req.body as PpeEventPayload;
     const receivedAt = new Date().toISOString();
+
     eventStore.add({
       receivedAt,
-      requestIp: req.ip,
-      userAgent: req.headers["user-agent"] || "",
-      payload: req.body
+      requestIp: req.ip ?? "",
+      userAgent: req.get("user-agent") ?? "",
+      payload
     });
 
     console.log(`[${receivedAt}] PPE webhook accepted:`, {
-      id: req.body.id,
-      name: req.body.name,
-      cameraName: req.body.cameraName,
-      zoneName: req.body.zoneName || null
+      id: payload.id,
+      name: payload.name,
+      cameraName: payload.cameraName,
+      zoneName: payload.zoneName || null
     });
 
     return res.status(202).json({
       success: true,
       message: "PPE event received.",
-      eventId: req.body.id
+      eventId: payload.id
     });
   });
 
   return router;
 }
-
-module.exports = createWebhookRoutes;

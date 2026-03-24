@@ -1,6 +1,6 @@
 # Incoming Webhook Service (PPE Desktop)
 
-Node.js receiver service for PPE Desktop webhook events.
+TypeScript Node.js receiver service for PPE Desktop webhook events.
 
 This project gives you:
 - A ready-to-run webhook endpoint for PPE events
@@ -21,7 +21,14 @@ This repository is licensed under the MIT License. See [LICENSE](./LICENSE).
 
 ```bash
 npm install
+npm run build
 npm start
+```
+
+For local development with automatic reload:
+
+```bash
+npm run dev
 ```
 
 By default, the service starts on:
