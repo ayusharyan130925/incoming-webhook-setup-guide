@@ -5,6 +5,7 @@
     "moduleResolution": "Node",
     "rootDir": "src",
     "outDir": "dist",
+    "composite": true,
     "strict": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,

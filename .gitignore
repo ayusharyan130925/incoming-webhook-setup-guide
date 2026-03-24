@@ -1,6 +1,23 @@
+# OS files
+.DS_Store
+
+# Node / TypeScript
 node_modules/
+typescript-code/node_modules/
+dist/
+typescript-code/dist/
+coverage/
+*.tsbuildinfo
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-coverage/
-dist/
+pnpm-debug.log*
+
+# Python / FastAPI
+.venv/
+fast-api/.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/

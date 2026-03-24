@@ -1,110 +1,143 @@
-# Incoming Webhook Service (PPE Desktop)
+# PPE Desktop Incoming Webhook Receivers
 
-TypeScript Node.js receiver service for PPE Desktop webhook events.
+This repository contains two complete receiver implementations for PPE Desktop incoming webhooks:
 
-This project gives you:
-- A ready-to-run webhook endpoint for PPE events
-- Optional Bearer token validation
-- Basic health and event log endpoints
-- Documentation for PPE Desktop webhook configuration
+- [typescript-code](./typescript-code): Node.js + Express + TypeScript
+- [fast-api](./fast-api): Python + FastAPI
 
-## License
+Both implementations provide the same core behavior:
 
-This repository is licensed under the MIT License. See [LICENSE](./LICENSE).
+- `POST /webhooks/ppe` to receive PPE event webhooks
+- optional Bearer token validation
+- `GET /health` health check
+- `GET /events` in-memory event history
+- `GET /` dashboard UI for recent events
 
-## Requirements
+If you only need PPE Desktop configuration steps, see [WEBHOOK_SETUP.md](./WEBHOOK_SETUP.md).
 
-- Node.js 18+ (recommended)
-- npm 9+ (recommended)
+## Project Layout
+
+```text
+incoming-webhook-setup-guide/
+├── WEBHOOK_SETUP.md
+├── LICENSE
+├── README.md
+├── typescript-code/
+│   ├── package.json
+│   ├── tsconfig.json
+│   ├── src/
+│   ├── public/
+│   └── README.md
+└── fast-api/
+    ├── requirements.txt
+    ├── app/
+    ├── public/
+    ├── run.py
+    └── README.md
+```
+
+## Choose an Implementation
+
+Use `typescript-code` if:
+
+- you want a Node.js service
+- you prefer TypeScript and npm tooling
+- you want `npm run dev` / `npm run build`
+
+Use `fast-api` if:
+
+- you want a Python service
+- you prefer FastAPI and Pydantic validation
+- you want to run with `python3 run.py` or `uvicorn`
+
+## Shared API Behavior
+
+### Base URL
+
+By default, both apps run on:
+
+- `http://127.0.0.1:3000`
+
+### Endpoints
+
+- `GET /health`
+- `GET /events`
+- `POST /webhooks/ppe`
+- `GET /`
+
+### Authentication Modes
+
+Configure auth using environment variables:
+
+- `WEBHOOK_AUTH_MODE=none`
+  No token required.
+- `WEBHOOK_AUTH_MODE=bearer`
+  Always require `Authorization: Bearer <token>`.
+- `WEBHOOK_AUTH_MODE=auto`
+  Require Bearer auth only if `WEBHOOK_AUTH_TOKEN` is set.
+
+### Environment Variables
+
+Both implementations support these variables:
+
+- `PORT`
+- `WEBHOOK_AUTH_MODE`
+- `WEBHOOK_AUTH_TOKEN`
+- `MAX_EVENTS`
+
+Both apps load `.env` from:
+
+- their own folder, or
+- the repository root
+
+### Supported Payload
+
+Both apps expect this PPE event payload:
+
+```json
+{
+  "event_type": "ppe_event",
+  "version": "1.0",
+  "id": "evt_abc123",
+  "name": "No Helmet Detected",
+  "cameraName": "Entrance Camera",
+  "eventTime": 1772455148,
+  "confidence": 0.94,
+  "thumbnailImage": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD...",
+  "zoneName": "Entry Zone",
+  "zoneSeverity": "high",
+  "timestamp": "2026-03-02T12:39:08.314Z"
+}
+```
+
+Rules:
+
+- `event_type` must be `ppe_event`
+- `zoneSeverity` must be one of `low`, `medium`, `high`, `critical`
+- `thumbnailImage` must be a data URL
 
 ## Quick Start
 
+### TypeScript
+
 ```bash
+cd typescript-code
 npm install
 npm run build
 npm start
 ```
 
-For local development with automatic reload:
+### FastAPI
 
 ```bash
-npm run dev
+cd fast-api
+python3 -m venv .venv
+source .venv/bin/activate
+pip3 install -r requirements.txt
+python3 run.py
 ```
 
-By default, the service starts on:
-- `http://127.0.0.1:3000`
-- Webhook endpoint: `POST http://127.0.0.1:3000/webhooks/ppe`
-- Dashboard UI: `GET http://127.0.0.1:3000/`
-
-## Configuration
-
-Use environment variables:
-
-- `PORT` (optional): service port (default: `3000`)
-- `WEBHOOK_AUTH_MODE` (optional): auth strategy for incoming webhooks
-  - `none`: never require token
-  - `bearer`: always require token
-  - `auto` (default): require token only if `WEBHOOK_AUTH_TOKEN` is set
-- `WEBHOOK_AUTH_TOKEN` (optional): bearer token value to validate
-- `MAX_EVENTS` (optional): in-memory event history size (default: `200`)
-
-The app auto-loads values from a local `.env` file.
-
-Examples:
-
-```bash
-# No auth required
-WEBHOOK_AUTH_MODE=none npm start
-
-# Always require bearer auth
-WEBHOOK_AUTH_MODE=bearer WEBHOOK_AUTH_TOKEN=my-secret-token npm start
-
-# Auto mode (default): token required only when token exists
-WEBHOOK_AUTH_MODE=auto WEBHOOK_AUTH_TOKEN=my-secret-token npm start
-```
-
-## PPE Desktop App Setup (End User Flow)
-
-In PPE Desktop:
-
-1. Open `Notifications` -> `Webhooks`.
-2. Click `Add webhook`.
-3. Enter webhook name and URL.
-4. Select event type: `PPE Event`.
-5. Choose authentication:
-   - `None`, or
-   - `Bearer token` (must match `WEBHOOK_AUTH_TOKEN` if enabled on this service)
-6. Save.
-7. Click `Test`.
-8. Check Delivery Log for success (2xx).
-9. Keep webhook enabled.
-
-Important:
-- If receiver runs on same machine, use `127.0.0.1` (not `localhost`).
-- Use a full URL (`http://...` or `https://...`).
-
-## Endpoints in This Service
-
-### 1) Health check
-
-- `GET /health`
-
-Example:
-
-```bash
-curl http://127.0.0.1:3000/health
-```
-
-### 2) Receive PPE webhook
-
-- `POST /webhooks/ppe`
-- Content type: `application/json`
-- Returns:
-  - `202` on accepted payload
-  - `400` for invalid payload
-  - `401` when bearer token is required but invalid/missing
-
-Example:
+## Testing with curl
 
 ```bash
 curl -X POST http://127.0.0.1:3000/webhooks/ppe \
@@ -125,49 +158,35 @@ curl -X POST http://127.0.0.1:3000/webhooks/ppe \
   }'
 ```
 
-### 3) View received events
+## PPE Desktop Setup
 
-- `GET /events`
-- Returns recent in-memory deliveries for troubleshooting
+In PPE Desktop:
 
-Example:
+1. Open `Notifications -> Webhooks`.
+2. Click `Add webhook`.
+3. Enter the receiver URL.
+4. Select event type `PPE Event`.
+5. Choose authentication:
+   - `None`, or
+   - `Bearer token`
+6. Save.
+7. Click `Test`.
+8. Confirm the receiver returns success.
 
-```bash
-curl http://127.0.0.1:3000/events
-```
+Important:
 
-### 4) Dashboard UI
-
-- `GET /`
-- One-page frontend showing incoming webhook cards with:
-  - image preview (if `thumbnailImage` exists)
-  - event details (all webhook payload fields)
-  - auto-refresh every 4 seconds
-
-## Payload Notes
-
-- Supported event type: `ppe_event`
-- Receiver expects exactly these payload fields:
-  - `event_type`
-  - `version`
-  - `id`
-  - `name`
-  - `cameraName`
-  - `eventTime`
-  - `confidence`
-  - `thumbnailImage`
-  - `zoneName`
-  - `zoneSeverity`
-  - `timestamp`
-- `thumbnailImage` must be a data URL string like `data:image/jpeg;base64,<...>`
-- Allowed `zoneSeverity`: `low`, `medium`, `high`, `critical`
-
-See full user-facing setup and payload examples in [WEBHOOK_SETUP.md](./WEBHOOK_SETUP.md).
+- Use `127.0.0.1` instead of `localhost` when the receiver is on the same machine.
+- Use a full URL including `http://` or `https://`.
 
 ## Troubleshooting
 
-- `Connection refused`: receiver is not running or wrong port.
-- `Host not found`: wrong hostname/DNS; use valid IP/hostname.
-- `Request timed out`: receiver did not return within 15 seconds.
-- `Invalid URL`: webhook URL must be full URL with protocol.
-- `SSL certificate error`: certificate is not trusted or invalid.
+- `pip3 install requirements.txt` is wrong. Use `pip3 install -r requirements.txt`.
+- `Connection refused` usually means the app is not running or the port is wrong.
+- `401 Unauthorized` means the Bearer token is missing or does not match.
+- `400 Bad Request` means the payload is missing fields or contains invalid values.
+- `Invalid URL` means PPE Desktop was given a malformed endpoint.
+- `SSL certificate error` means the target HTTPS certificate is invalid or untrusted.
+
+## License
+
+This repository is licensed under the MIT License. See [LICENSE](./LICENSE).

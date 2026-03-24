@@ -2,10 +2,9 @@ import fs from "fs";
 import path from "path";
 import type { AppConfig, WebhookAuthMode } from "../types/ppe";
 
-function loadDotEnvFile(): void {
-  const envPath = path.resolve(process.cwd(), ".env");
+function loadDotEnvFileFrom(envPath: string): boolean {
   if (!fs.existsSync(envPath)) {
-    return;
+    return false;
   }
 
   const fileContent = fs.readFileSync(envPath, "utf8");
@@ -24,6 +23,21 @@ function loadDotEnvFile(): void {
     const value = line.slice(separatorIndex + 1).trim();
     if (key && process.env[key] === undefined) {
       process.env[key] = value;
+    }
+  }
+
+  return true;
+}
+
+function loadDotEnvFile(): void {
+  const candidatePaths = [
+    path.resolve(process.cwd(), ".env"),
+    path.resolve(process.cwd(), "..", ".env")
+  ];
+
+  for (const envPath of candidatePaths) {
+    if (loadDotEnvFileFrom(envPath)) {
+      return;
     }
   }
 }
